@@ -1,0 +1,24 @@
+<!DOCTYPE web-app PUBLIC
+ "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd" >
+
+<web-app>
+    <display-name>Broke Web Application</display-name>
+
+    <servlet>
+        <servlet-name>accounts</servlet-name>
+        <servlet-class>thecarlhall.broke.web.servlets.AccountsServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>accounts</servlet-name>
+        <url-pattern>/accounts</url-pattern>
+    </servlet-mapping>
+    
+    <resource-ref>
+        <description>Broke Data Source</description>
+        <res-ref-name>jdbc/BrokeDS</res-ref-name>
+        <res-type>javax.sql.DataSource</res-type>
+        <res-auth>Container</res-auth>
+    </resource-ref>
+</web-app>

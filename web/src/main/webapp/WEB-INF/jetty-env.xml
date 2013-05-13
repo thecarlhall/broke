@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-//Mort Bay Consulting//DTD Configure//EN" "http://www.eclipse.org/jetty/configure.dtd">
+
+<!-- DO NOT COMMIT THIS FILE BEFORE SCRUBBING AUTH DATA -->
+<Configure class="org.eclipse.jetty.webapp.WebAppContext">
+    <New id="BrokeDS" class="org.eclipse.jetty.plus.jndi.Resource">
+        <Arg></Arg>
+        <Arg>jdbc/BrokeDS</Arg>
+        <Arg>
+            <New class="com.mchange.v2.c3p0.ComboPooledDataSource">
+                <Set name="driverClass">com.mysql.Driver</Set>
+                <Set name="jdbcUrl">jdbc:mysql://localhost:3306/broke</Set>
+                <Set name="user">root</Set>
+                <Set name="password">mtrpls12</Set>
+            </New>
+        </Arg>
+    </New>
+</Configure>
