@@ -21,6 +21,7 @@ func FindProcessor(year int64) Processor {
  *******************************************************************************/
 // Interface Processor defines the methods for processing a spreadsheet.
 type Processor interface {
+	// Get a unique string for this
 	Name() string
 	Print(ods.Table)
 	Process() error
