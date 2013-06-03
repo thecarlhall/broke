@@ -5,13 +5,17 @@ import (
 	"log"
 	"math"
 	"odf/ods"
-	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
 const (
 	odsPath = "/Users/carl/Downloads/bills.ods"
+)
+
+var (
+	moneyCleanRegex = regexp.MustCompile(`[$,]`)
 )
 
 // Print out the data in a table.
@@ -35,7 +39,7 @@ func ProcessNewFormat(table ods.Table) {
 			continue
 		}
 		if strings.Index(row[0], "Billing Cycle") == 0 {
-			fmt.Printf("\n*** %s\n", row[0])
+			log.Printf("*** %s\n", row[0])
 			continue
 		}
 		biller := row[0]
@@ -46,20 +50,26 @@ func ProcessNewFormat(table ods.Table) {
 		debit := 0.0
 		credit := 0.0
 		if len(row) >= 3 {
-		println(row[2])
-			debit, _ = parseMoney(row[2])
+			var err error
+			debit, err = parseMoney(row[2])
+			printErr(err)
 		}
 		if len(row) >= 4 {
-			credit, _ = parseMoney(row[3])
+			var err error
+			credit, err = parseMoney(row[3])
+			printErr(err)
 		}
-		fmt.Printf("%35s; %11s; %10.2f; %5.2f\n", biller, date, debit, credit)
+		log.Printf("%35s; %11s; %10.2f; %5.2f\n", biller, date, debit, credit)
 	}
 }
 
 func ProcessOldFormat(table ods.Table) {
 	for _, row := range table.Strings() {
-		//println(strings.Index(row[0], "Billing Cycle"))
-		if len(row) > 2 || row[0] == "" || row[0] == "Leftover" {
+		if row[0] == "Leftover" {
+			continue
+		}
+		if strings.Index(row[0], "Billing Cycle") == 0 {
+			log.Printf("*** %s\n", row[0])
 			continue
 		}
 		biller := row[0]
@@ -71,9 +81,7 @@ func ProcessOldFormat(table ods.Table) {
 		var err error
 		if len(row) >= 3 {
 			amount, err = parseMoney(row[2])
-			println(amount)
-			if err != nil {
-				log.Fatal(err)
+			if printErr(err) {
 				continue
 			}
 		}
@@ -85,13 +93,26 @@ func ProcessOldFormat(table ods.Table) {
 			debit = math.Abs(amount)
 		}
 
-		fmt.Printf("%35s; %11s; %10.2f; %5.2f\n", biller, date, debit, credit)
+		log.Printf("%35s; %11s; %10.2f; %5.2f\n", biller, date, debit, credit)
 	}
 }
 
+// Parse a string into a float. This removes non-numeric characters.
 func parseMoney(data string) (float64, error) {
-	amount, err := strconv.ParseFloat(strings.Replace(data, "$", "", 1), 32)
+	var amount float64
+	var err error
+	if len(data) > 0 {
+		amount, err = strconv.ParseFloat(moneyCleanRegex.ReplaceAllString(data, ""), 32)
+	}
 	return amount, err
+}
+
+func printErr(err error) (bool) {
+	if err != nil {
+		log.Printf("[ERROR] %s", err)
+		return true
+	}
+	return false
 }
 
 func main() {
@@ -99,34 +120,27 @@ func main() {
 
 	f, err := ods.Open(odsPath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.Fatal(err)
 		return
 	}
 	defer f.Close()
 
 	if err := f.ParseContent(&doc); err != nil {
 		log.Fatal(err)
-		//fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
 	// Dump the first table one line per row, writing
 	// tab separated, quoted fields.
-	//for _, table := range doc.Table {
-		table := doc.Table[0]
-		year, err := strconv.Atoi(table.Name)
-
-		//if err != nil {
-		//	continue
-		//}
-
-		//Print(table)
-		if year > 2008 {
-			println(fmt.Sprintf("\n***** Sheet: %s [new] *****", table.Name))
-			ProcessNewFormat(table)
-		} else {
-			println(fmt.Sprintf("\n***** Sheet: %s [old] *****", table.Name))
-			ProcessOldFormat(table)
+	for _, table := range doc.Table {
+		if year, err := strconv.Atoi(table.Name); err == nil {
+			if year > 2008 {
+				log.Printf("***** Sheet: %s [new] *****", table.Name)
+					ProcessNewFormat(table)
+			} else {
+				log.Printf("***** Sheet: %s [old] *****", table.Name)
+					ProcessOldFormat(table)
+			}
 		}
-	//}
+	}
 }
