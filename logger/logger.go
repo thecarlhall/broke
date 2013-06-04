@@ -25,11 +25,27 @@ func Tracef(format string, v ...interface{}) {
 	}
 }
 
+// Trace logs a formatted message when the logging level is at least TRACE.
+// Arguments are handled in the manner of log.Printf.
+func Trace(v ...interface{}) {
+	if LEVEL <= TRACE {
+		Print("[TRACE]", v...)
+	}
+}
+
 // Debugf logs a formatted message when the logging level is at least DEBUG.
 // Arguments are handled in the manner of log.Printf.
 func Debugf(format string, v ...interface{}) {
 	if LEVEL <= DEBUG {
 		Printf("[DEBUG]", format, v...)
+	}
+}
+
+// Debug logs a formatted message when the logging level is at least DEBUG.
+// Arguments are handled in the manner of log.Printf.
+func Debug(v ...interface{}) {
+	if LEVEL <= DEBUG {
+		Print("[DEBUG]", v...)
 	}
 }
 
@@ -57,6 +73,14 @@ func Warnf(format string, v ...interface{}) {
 	}
 }
 
+// Warn logs a formatted message when the logging level is at least WARN.
+// Arguments are handled in the manner of log.Printf.
+func Warn(v ...interface{}) {
+	if LEVEL <= WARN {
+		Print("[WARN]", v...)
+	}
+}
+
 // Errorf logs a formatted message when the logging level is at least ERROR.
 // Arguments are handled in the manner of log.Printf.
 func Errorf(format string, v ...interface{}) {
@@ -73,6 +97,12 @@ func Error(v ...interface{}) {
 	}
 }
 
+// Fatal is a delegation to Go's log.Fatalf. This is just for consistency.
+func Fatalf(format string, v ...interface{}) {
+	log.Fatalf(format, v...)
+}
+
+// Fatal is a delegation to Go's log.Fatal. This is just for consistency.
 func Fatal(v ...interface{}) {
 	log.Fatal(v...)
 }
