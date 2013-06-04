@@ -1,45 +1,37 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"math"
-	"odf/ods"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+
+	//"database/sql"
+	//_ "github.com/lib/pq"
+	"odf/ods"
+
+	"broke/logger"
 )
 
 const (
-	odsPath = "/Users/carl/Downloads/bills.ods"
+	ODS_PATH = "/Users/carl/Downloads/bills.ods"
+	DEBUG    = true
 )
 
 var (
 	moneyCleanRegex = regexp.MustCompile(`[$,]`)
+	newSkipTerms    = []string{"Allowance", "Auto Insurance", "Auto Tags", "Balance", "Bills", "Income", "Savings"}
+	oldSkipTerms    = []string{"Carry over", "Leftover"}
 )
-
-// Print out the data in a table.
-func Print(table ods.Table) {
-	for _, row := range table.Strings() {
-		if len(row) == 0 || row[0] == "" {
-			continue
-		}
-		sep := ""
-		for _, field := range row {
-			fmt.Print(sep, strconv.Quote(field))
-			sep = "\t"
-		}
-		fmt.Print("\n")
-	}
-}
 
 func ProcessNewFormat(table ods.Table) {
 	for _, row := range table.Strings() {
-		if len(row) < 2 || row[0] == "" || strings.Index(row[0], "Balance") == 0 {
+		if len(row) < 2 || row[0] == "" || shouldSkip(newSkipTerms, row[0]) {
 			continue
 		}
 		if strings.Index(row[0], "Billing Cycle") == 0 {
-			log.Printf("*** %s\n", row[0])
+			logger.Info(row[0])
 			continue
 		}
 		biller := row[0]
@@ -47,8 +39,7 @@ func ProcessNewFormat(table ods.Table) {
 		if date == "" {
 			continue
 		}
-		debit := 0.0
-		credit := 0.0
+		var debit, credit float64
 		if len(row) >= 3 {
 			var err error
 			debit, err = parseMoney(row[2])
@@ -59,17 +50,24 @@ func ProcessNewFormat(table ods.Table) {
 			credit, err = parseMoney(row[3])
 			printErr(err)
 		}
-		log.Printf("%35s; %11s; %10.2f; %5.2f\n", biller, date, debit, credit)
+
+		if credit != 0 || debit != 0 {
+			if DEBUG {
+				logger.Debugf("%35s; %11s; %10.2f; %5.2f", biller, date, debit, credit)
+			}
+		} else {
+				logger.Debugf("********** %s [%s] had no values", biller, date)
+		}
 	}
 }
 
 func ProcessOldFormat(table ods.Table) {
 	for _, row := range table.Strings() {
-		if row[0] == "Leftover" {
+		if shouldSkip(oldSkipTerms, row[0]) {
 			continue
 		}
 		if strings.Index(row[0], "Billing Cycle") == 0 {
-			log.Printf("*** %s\n", row[0])
+			logger.Infof("*** %s", row[0])
 			continue
 		}
 		biller := row[0]
@@ -85,15 +83,22 @@ func ProcessOldFormat(table ods.Table) {
 				continue
 			}
 		}
-		credit := 0.0
-		debit := 0.0
+		var credit, debit float64
 		if amount < 0 || biller != "Paycheck" {
 			credit = math.Abs(amount)
 		} else {
 			debit = math.Abs(amount)
 		}
 
-		log.Printf("%35s; %11s; %10.2f; %5.2f\n", biller, date, debit, credit)
+		if credit != 0 || debit != 0 {
+			if DEBUG {
+				logger.Debugf("%35s; %11s; %10.2f; %5.2f", biller, date, debit, credit)
+			}
+		} else {
+			if DEBUG {
+				logger.Debugf("%s [%s] had no values", biller, date)
+			}
+		}
 	}
 }
 
@@ -107,26 +112,30 @@ func parseMoney(data string) (float64, error) {
 	return amount, err
 }
 
-func printErr(err error) (bool) {
+func printErr(err error) bool {
 	if err != nil {
-		log.Printf("[ERROR] %s", err)
+		logger.Error(err)
 		return true
 	}
 	return false
 }
 
+func shouldSkip(skips []string, val string) (bool) {
+	return sort.SearchStrings(skips, strings.Trim(val, " ")) < 0
+}
+
 func main() {
 	var doc ods.Doc
 
-	f, err := ods.Open(odsPath)
+	f, err := ods.Open(ODS_PATH)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 		return
 	}
 	defer f.Close()
 
 	if err := f.ParseContent(&doc); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 		return
 	}
 
@@ -134,12 +143,12 @@ func main() {
 	// tab separated, quoted fields.
 	for _, table := range doc.Table {
 		if year, err := strconv.Atoi(table.Name); err == nil {
-			if year > 2008 {
-				log.Printf("***** Sheet: %s [new] *****", table.Name)
-					ProcessNewFormat(table)
+			if year >= 2008 {
+				logger.Infof("***** Sheet: %s [new] *****", table.Name)
+				ProcessNewFormat(table)
 			} else {
-				log.Printf("***** Sheet: %s [old] *****", table.Name)
-					ProcessOldFormat(table)
+				logger.Infof("***** Sheet: %s [old] *****", table.Name)
+				ProcessOldFormat(table)
 			}
 		}
 	}
